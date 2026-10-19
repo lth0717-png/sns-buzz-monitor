@@ -98,11 +98,19 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tag.watch{background:var(--watch-soft);color:var(--watch)}
 .mk{font-size:10.5px;font-weight:600;color:var(--mute);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:3px;font-family:var(--sans)}
 .up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--mute)}
+.px{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;font-size:14px;margin-left:10px;white-space:nowrap}
+.pchg{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px;font-weight:600;padding:1px 6px;border-radius:5px;margin-left:6px;white-space:nowrap}
+.pchg.up{background:color-mix(in srgb,var(--up) 14%,transparent)}
+.pchg.down{background:color-mix(in srgb,var(--down) 14%,transparent)}
+.pchg.muted{background:var(--line-2)}
+td.price .px{margin-left:0;font-size:14px;display:block}
+td.price .pchg{margin-left:0;display:inline-block;margin-top:3px}
+.tline{display:flex;align-items:baseline;flex-wrap:wrap;row-gap:2px}
 
 /* 표 */
 .tablecard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .tbox{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:860px}
+table{border-collapse:collapse;width:100%;min-width:960px}
 thead th{position:sticky;top:0;background:var(--panel-2);font-size:11.5px;font-weight:600;color:var(--mute);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;letter-spacing:.02em}
 tbody td{padding:12px;border-bottom:1px solid var(--line-2);vertical-align:top;font-size:14px}
 th.n,td.n{text-align:right;white-space:nowrap}
@@ -198,7 +206,7 @@ tr.det td{background:var(--panel-2);font-size:13px;color:var(--ink-2);padding-to
     <div class="tablecard">
       <div class="tbox"><table>
         <thead><tr>
-          <th class="n">#</th><th>종목</th><th class="n">화제성</th><th class="n">레딧 언급</th><th class="n">24시간 변화</th><th class="n">StockTwits</th><th>왜 화제인지</th><th>신호</th>
+          <th class="n">#</th><th>종목</th><th class="n">현재가 · 변동</th><th class="n">화제성</th><th class="n">레딧 언급</th><th class="n">언급 변화</th><th class="n">StockTwits</th><th>왜 화제인지</th><th>신호</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table></div>
@@ -227,7 +235,8 @@ tr.det td{background:var(--panel-2);font-size:13px;color:var(--ink-2);padding-to
     <b>화제성 점수</b> 레딧 언급량, 하루 전 대비 증가율, StockTwits·CoinGecko 순위, 여러 곳에서 동시에 화제인지를 합친 값이에요.
     <b>급상승</b> 레딧 언급이 하루 전의 3배 이상(10회 이상일 때). <b>순위 급등</b> 레딧 순위가 20계단 이상 올라 30위 안에 진입.
     <b>AI</b> Gemini가 StockTwits 설명과 지표를 바탕으로 쓴 요약, <b>지표</b> 언급·순위 변화만으로 만든 요약이에요.
-    출처: ApeWisdom(레딧·4chan), StockTwits, CoinGecko. 투자 판단의 참고용이며 매수·매도 추천이 아니에요.
+    <b>가격</b> 주식은 전일 종가 대비 오늘 변동(야후 파이낸스, 몇 분 늦을 수 있음), 코인은 최근 24시간 변동(CoinGecko).
+    출처: ApeWisdom(레딧·4chan), StockTwits, CoinGecko, Yahoo Finance. 투자 판단의 참고용이며 매수·매도 추천이 아니에요.
   </p>
 </main>
 
@@ -267,6 +276,13 @@ tr.det td{background:var(--panel-2);font-size:13px;color:var(--ink-2);padding-to
     p.append(el('span', 'src-badge ' + (ai ? 'ai' : 'num'), ai ? 'AI' : '지표'), ai || it.reason_ko || '설명할 자료가 아직 없어요.');
     return p;
   };
+  const fmtPrice = (p) => { if (p == null) return '–'; const a = Math.abs(p); const d = a >= 1 ? 2 : a >= 0.01 ? 4 : 8; return '$' + Number(p).toLocaleString('en-US', { minimumFractionDigits: a >= 1 ? 2 : 2, maximumFractionDigits: d }); };
+  const pchg = (it) => {
+    if (it.price_change_pct == null) return el('span', 'pchg muted', '–');
+    const v = it.price_change_pct; const s = (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+    const e = el('span', 'pchg ' + (v > 0 ? 'up' : v < 0 ? 'down' : 'muted'), s); e.title = it.price_basis === '24시간' ? '최근 24시간 변동' : '전일 종가 대비 오늘 변동'; return e;
+  };
+  const priceEls = (it) => it.price == null ? [] : [el('span', 'px', fmtPrice(it.price)), pchg(it)];
   const ago = (iso) => { const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000)); return m < 1 ? '방금' : m + '분 전'; };
 
   function pick() {
@@ -316,13 +332,13 @@ tr.det td{background:var(--panel-2);font-size:13px;color:var(--ink-2);padding-to
     $('hot').replaceChildren(...list.slice(0, 6).map((it, i) => {
       const c = el('article', 'card');
       const head = el('div', 'head');
-      const mid = el('div'); const tk = el('div'); tk.append(el('span', 'tk', it.ticker), mk(it)); mid.append(tk, el('div', 'nm', it.name || ''));
+      const mid = el('div'); mid.style.minWidth = '0'; const tk = el('div', 'tline'); tk.append(el('span', 'tk', it.ticker), mk(it), ...priceEls(it)); mid.append(tk, el('div', 'nm', it.name || ''));
       const sc = el('div', 'score'); sc.append(el('b', null, it.score.toFixed(1)), el('span', null, '화제성'));
       head.append(el('span', 'rank', String(i + 1)), mid, sc);
       const heat = el('div', 'heat'); const bar = el('i'); bar.style.width = Math.round((it.score / maxScore) * 100) + '%'; heat.append(bar);
       const m = el('div', 'metrics');
       const cell = (k, v) => { const d = el('div'); d.append(el('div', 'k', k)); const vv = el('div', 'v'); vv.append(v); d.append(vv); return d; };
-      m.append(cell('레딧 언급', fmtN(it.mentions)), cell('24시간 변화', chg(it)), cell(it.cg_rank ? 'CoinGecko' : 'StockTwits', it.cg_rank ? `#${it.cg_rank}` : it.st_rank ? `#${it.st_rank}` : '–'));
+      m.append(cell('레딧 언급', fmtN(it.mentions)), cell('언급 변화', chg(it)), cell(it.cg_rank ? 'CoinGecko' : 'StockTwits', it.cg_rank ? `#${it.cg_rank}` : it.st_rank ? `#${it.st_rank}` : '–'));
       c.append(head, heat, tagEls(tagsOf(it)), why(it), m);
       return c;
     }));
@@ -337,23 +353,25 @@ tr.det td{background:var(--panel-2);font-size:13px;color:var(--ink-2);padding-to
       const c = el('td', 'n'); c.append(chg(it));
       const r = el('td', 'reason'); r.append(why(it, 'why'));
       const tg = el('td'); tg.append(tagEls(tagsOf(it)));
-      tr.append(el('td', 'n muted', String(i + 1)), nm, sc, el('td', 'n', fmtN(it.mentions)), c, el('td', 'n', it.st_rank ? `#${it.st_rank}` : '–'), r, tg);
+      const pc = el('td', 'n price'); if (it.price != null) pc.append(el('span', 'px', fmtPrice(it.price)), pchg(it)); else pc.append(el('span', 'muted', '–'));
+      tr.append(el('td', 'n muted', String(i + 1)), nm, pc, sc, el('td', 'n', fmtN(it.mentions)), c, el('td', 'n', it.st_rank ? `#${it.st_rank}` : '–'), r, tg);
       rows.push(tr);
       if (exp) {
-        const d = el('tr', 'det'); const td = el('td'); td.colSpan = 8;
+        const d = el('tr', 'det'); const td = el('td'); td.colSpan = 9;
         const g = el('div', 'det-grid');
         const kv = (k, v) => { const x = el('div'); x.append(el('div', 'k', k), el('div', 'v', v)); g.append(x); };
         kv('레딧 순위', it.reddit_rank ? `#${it.reddit_rank} (하루 전 #${it.rank_24h_ago || '–'})` : '–');
         kv('하루 전 언급', fmtN(it.mentions_24h_ago));
         kv('StockTwits 트렌딩', it.st_rank ? `#${it.st_rank}` : '–');
         kv('CoinGecko 급상승', it.cg_rank ? `#${it.cg_rank}` + (it.price_change_24h != null ? ` (${it.price_change_24h > 0 ? '+' : ''}${it.price_change_24h.toFixed(1)}%)` : '') : '–');
+        if (it.price != null) kv(it.price_basis === '24시간' ? '가격 (24시간 변동)' : '가격 (전일 종가 대비)', fmtPrice(it.price) + (it.price_change_pct != null ? `  ${it.price_change_pct > 0 ? '+' : ''}${it.price_change_pct.toFixed(2)}%` : ''));
         kv('출처', it.sources.join(', '));
         td.append(g);
         if (it.st_summary) td.append(el('div', 'orig', 'StockTwits 원문 · ' + it.st_summary));
         d.append(td); rows.push(d);
       }
     });
-    if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', '해당하는 종목이 없어요.'); td.colSpan = 8; tr.append(td); rows.push(tr); }
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'muted', '해당하는 종목이 없어요.'); td.colSpan = 9; tr.append(td); rows.push(tr); }
     $('tbody').replaceChildren(...rows);
     $('more-wrap').hidden = list.length <= LIMIT;
     $('more').textContent = `더 보기 (${list.length - LIMIT}개)`;
@@ -362,6 +380,11 @@ tr.det td{background:var(--panel-2);font-size:13px;color:var(--ink-2);padding-to
       const s = (DATA.status || {})[k] || {};
       const row = el('div', 'source'); const d = el('span', 'dot' + (s.ok ? '' : ' off')); d.style.animation = 'none';
       row.append(d, el('span', null, SRC_NAMES[k]), el('span', 'st', s.ok ? `${s.count}개 수신` : '실패'));
+      return row;
+    }), ...[['stock_prices', '주식 시세 (Yahoo Finance)'], ['crypto_prices', '코인 시세 (CoinGecko)']].map(([k, label]) => {
+      const s = (DATA.price_status || {})[k] || {};
+      const row = el('div', 'source'); const d = el('span', 'dot' + (s.ok ? '' : ' off')); d.style.animation = 'none';
+      row.append(d, el('span', null, label), el('span', 'st', s.ok ? `${s.count}개 종목` : '실패'));
       return row;
     }), (() => {
       const row = el('div', 'source'); const ok = Object.keys(REASONS).length > 0; const d = el('span', 'dot' + (ok ? '' : ' off')); d.style.animation = 'none';
