@@ -4,6 +4,8 @@ import { collect } from '../lib/collect.js';
 
 const MODELS = [
   process.env.GEMINI_MODEL,
+  'gemini-3.8-flash',
+  'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
   'gemini-flash-lite-latest',
@@ -22,8 +24,8 @@ async function askGemini(prompt, key) {
         generationConfig: { temperature: 0.3, responseMimeType: 'application/json' },
       }),
     });
-    if (r.status === 404 || r.status === 400) { lastErr = `${model}: HTTP ${r.status}`; continue; } // 없는 모델이면 다음 후보
-    if (!r.ok) throw new Error(`Gemini ${model} HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    // 없는 모델(404/400)이거나 붐비거나 한도 초과(429/5xx)면 다음 후보 모델로
+    if (!r.ok) { lastErr = `${model}: HTTP ${r.status}`; if ([400, 404, 429, 500, 502, 503, 504].includes(r.status)) continue; throw new Error(`Gemini ${lastErr}: ${(await r.text()).slice(0, 200)}`); }
     const j = await r.json();
     const text = j?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
     return { model, text };
