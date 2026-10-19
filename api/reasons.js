@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     return res.status(200).send(JSON.stringify({ reasons: {}, error: 'no_key' }));
   }
   try {
-    const { items } = await collect();
+    const { items } = await collect({ prices: false });
     const top = items.slice(0, 25).map((it) => ({
       id: it.key,
       종목: `${it.ticker} (${it.name})`,
