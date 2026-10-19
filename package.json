@@ -1,0 +1,8 @@
+{
+  "name": "sns-buzz-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "코인·주식 SNS 화제성 모니터 (Vercel)",
+  "engines": { "node": ">=18" }
+}
