@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SNS 화제성 모니터</title>
+<meta name="description" content="레딧·StockTwits·CoinGecko에서 지금 화제인 코인·주식과 그 이유">
+<style>
+/* 레이아웃: 위에서 아래로 요약 → 뜨거운 종목 카드 → 전체 순위 표. 폭은 최대 1180px */
+:root{
+  --bg:#f5f6f8;--card:#ffffff;--ink:#14171c;--sub:#5b6270;--line:#e2e5ea;--chip:#eceff3;
+  --accent:#2f62e0;--hot:#d93a3f;--hot-bg:#fcebec;--up:#16915a;--watch:#a45f00;--watch-bg:#fff2dc;
+  --font:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic","Noto Sans KR",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e1014;--card:#171a20;--ink:#e8eaee;--sub:#9aa2ae;--line:#272b33;--chip:#21252c;
+  --accent:#7aa2ff;--hot:#ff6b70;--hot-bg:#3a1c1f;--up:#3fcf8e;--watch:#ffb547;--watch-bg:#33280f;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--font)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px}
+h1{margin:0;font-size:24px;letter-spacing:-.3px}
+h2{margin:0 0 4px;font-size:17px}
+.sub{color:var(--sub);font-size:13px}
+.note{color:var(--sub);font-size:13px;margin:0 0 12px}
+button,input{font:inherit}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.take{margin:6px 0 0;font-size:15px;max-width:70ch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi b{display:block;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.25}
+.kpi span{color:var(--sub);font-size:13px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tab{border:0;background:var(--chip);color:var(--sub);padding:7px 14px;border-radius:999px;cursor:pointer}
+.tab[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.search{margin-left:auto;flex:0 1 220px;min-width:0;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 10px}
+.hot{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.hc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.hc .t{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tk{font-weight:700;font-size:19px}
+.sc{color:var(--sub);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nm{color:var(--sub);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.why{margin:0;font-size:14.5px;line-height:1.6}
+.why small{display:inline-block;margin-right:6px;font-size:11px;font-weight:600;color:var(--accent);border:1px solid currentColor;border-radius:4px;padding:0 4px;vertical-align:1px}
+.stats{color:var(--sub);font-size:12.5px}
+.mk{font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;font-weight:400;vertical-align:2px}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:11.5px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--sub);white-space:nowrap}
+.tag.hot{background:var(--hot-bg);color:var(--hot);font-weight:600}
+.tag.watch{background:var(--watch-bg);color:var(--watch);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.tbox{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12.5px;color:var(--sub);font-weight:600;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--chip)}
+td.reason{font-size:13.5px;max-width:420px}
+tr.det td{background:var(--bg);color:var(--sub);font-size:13px}
+.up{color:var(--up)} .dn{color:var(--hot)}
+.err{background:var(--hot-bg);color:var(--hot);padding:10px 14px;border-radius:8px;font-size:13px}
+.watchbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.watchbox input{flex:1 1 260px;min-width:0;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 10px}
+.legend{color:var(--sub);font-size:12.5px;line-height:1.75}
+.skel{color:transparent!important;background:var(--chip);border-radius:6px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SNS 화제성 모니터</h1>
+      <div class="sub" id="meta">데이터를 불러오는 중…</div>
+    </div>
+    <button class="btn" id="reload" type="button">새로고침</button>
+  </header>
+
+  <p class="take skel" id="take">지금 SNS에서 화제인 종목을 정리하고 있어요</p>
+  <div id="errs"></div>
+
+  <div class="kpis">
+    <div class="kpi"><b id="k-top" class="skel">—</b><span>화제성 1위</span></div>
+    <div class="kpi"><b id="k-hot" class="skel">—</b><span>급상승 신호</span></div>
+    <div class="kpi"><b id="k-multi" class="skel">—</b><span>여러 SNS 동시 화제</span></div>
+    <div class="kpi"><b id="k-watch" class="skel">—</b><span>순위에 오른 관심종목</span></div>
+  </div>
+
+  <div class="bar" role="group" aria-label="보기 선택">
+    <button class="tab" type="button" data-tab="all" aria-pressed="true">전체</button>
+    <button class="tab" type="button" data-tab="hot" aria-pressed="false">급상승만</button>
+    <button class="tab" type="button" data-tab="stock" aria-pressed="false">주식</button>
+    <button class="tab" type="button" data-tab="crypto" aria-pressed="false">코인</button>
+    <button class="tab" type="button" data-tab="watch" aria-pressed="false">관심종목</button>
+    <input class="search" id="q" type="search" placeholder="종목 검색 (예: RKLB)" aria-label="종목 검색">
+  </div>
+
+  <section>
+    <h2>지금 가장 뜨거운 종목</h2>
+    <p class="note">화제성 점수 상위 6개와 왜 화제인지 요약이에요.</p>
+    <div class="hot" id="hot"></div>
+  </section>
+
+  <section class="card">
+    <h2>전체 화제성 순위</h2>
+    <p class="note">줄을 누르면 순위 변화와 StockTwits 원문 설명이 열려요.</p>
+    <div class="tbox"><table>
+      <thead><tr>
+        <th class="n">#</th><th>종목</th><th class="n">점수</th><th class="n">레딧 언급</th><th class="n">전일 대비</th><th>왜 화제인지</th><th>표시</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <button class="btn" id="more" type="button" hidden style="margin-top:12px">더 보기</button>
+  </section>
+
+  <section class="card">
+    <h2>관심종목</h2>
+    <p class="note">쉼표로 구분해 입력하면 이 브라우저에 저장돼요. 순위에 오르면 노란 표시가 붙어요.</p>
+    <div class="watchbox">
+      <input id="watch" type="text" aria-label="관심종목" placeholder="BTC, ETH, RKLB">
+      <button class="btn" id="watch-save" type="button">저장</button>
+      <span class="sub" id="watch-msg" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <p class="legend">
+    <b>화제성 점수</b>: 레딧 언급량, 하루 전보다 늘어난 비율, StockTwits·CoinGecko 순위, 여러 곳에서 동시에 화제인지를 합친 값이에요.
+    <b>급상승</b>: 레딧 언급이 하루 전의 3배 이상(10회 이상일 때).
+    <b>순위 급등</b>: 레딧 순위가 20계단 이상 올라 30위 안에 들어옴.
+    <b>AI 요약</b>은 Gemini가 StockTwits 설명과 숫자를 바탕으로 쓴 글이고, <b>숫자 요약</b>은 언급·순위 변화만으로 만든 글이에요.
+    데이터는 10분마다 새로 모아요. 출처: ApeWisdom(레딧·4chan), StockTwits, CoinGecko. 투자 판단의 참고용이며 매수·매도 추천이 아니에요.
+  </p>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const HOT = ['급상승', '순위 급등'];
+  const DEFAULT_WATCH = ['BTC', 'ETH', 'SOL', 'TSLA', 'NVDA', 'RKLB'];
+  let DATA = null, REASONS = {}, REASON_ERR = null, TAB = 'all', LIMIT = 30;
+  const open = new Set();
+
+  const loadWatch = () => { try { const v = JSON.parse(localStorage.getItem('watch') || 'null'); if (Array.isArray(v)) return v; } catch (e) {} return DEFAULT_WATCH; };
+  let WATCH = loadWatch();
+  $('watch').value = WATCH.join(', ');
+  $('watch-save').addEventListener('click', () => {
+    WATCH = $('watch').value.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+    try { localStorage.setItem('watch', JSON.stringify(WATCH)); $('watch-msg').textContent = '저장했어요'; }
+    catch (e) { $('watch-msg').textContent = '이 브라우저에서는 저장할 수 없어서 이번 방문에만 적용돼요'; }
+    render();
+  });
+
+  const tagsOf = (it) => WATCH.includes(it.ticker) ? [...it.tags, '관심종목'] : it.tags;
+  const tagEls = (tags) => { const b = el('div', 'tags'); tags.forEach((t) => b.append(el('span', 'tag' + (HOT.includes(t) ? ' hot' : t === '관심종목' ? ' watch' : ''), t))); return b; };
+  const mk = (it) => el('span', 'mk', it.market === 'crypto' ? '코인' : '주식');
+  const chg = (it) => {
+    if (it.mentions == null) return el('span', null, '–');
+    if (it.change_pct == null) return el('span', 'up', '신규');
+    return el('span', it.change_pct >= 0 ? 'up' : 'dn', (it.change_pct >= 0 ? '+' : '') + it.change_pct.toLocaleString() + '%');
+  };
+  const why = (it) => {
+    const p = el('p', 'why');
+    const ai = REASONS[it.key];
+    p.append(el('small', null, ai ? 'AI 요약' : '숫자 요약'), ai || it.reason_ko || '설명할 자료가 아직 없어요.');
+    return p;
+  };
+  const ago = (iso) => {
+    const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000));
+    return m < 1 ? '방금' : m + '분 전';
+  };
+
+  function pick() {
+    const q = $('q').value.trim().toUpperCase();
+    return DATA.items.filter((it) => {
+      const tags = tagsOf(it);
+      if (TAB === 'stock' && it.market !== 'stock') return false;
+      if (TAB === 'crypto' && it.market !== 'crypto') return false;
+      if (TAB === 'hot' && !tags.some((t) => HOT.includes(t))) return false;
+      if (TAB === 'watch' && !tags.includes('관심종목')) return false;
+      if (q && !(it.ticker.includes(q) || (it.name || '').toUpperCase().includes(q))) return false;
+      return true;
+    });
+  }
+
+  function render() {
+    if (!DATA) return;
+    const items = DATA.items;
+    const t = new Date(DATA.collected_at);
+    $('meta').textContent = `마지막 수집 ${t.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} (${ago(DATA.collected_at)}) · 10분마다 새로 모아요`;
+
+    const names = { ape_stocks: '레딧 주식', ape_crypto: '레딧 코인', stocktwits: 'StockTwits', coingecko: 'CoinGecko' };
+    const failed = Object.entries(DATA.status || {}).filter(([, s]) => !s.ok).map(([k]) => names[k] || k);
+    const errs = [];
+    if (failed.length) errs.push(`지금 ${failed.join(', ')} 데이터를 가져오지 못했어요. 나머지 출처로 보여드리고, 10분 뒤 다시 시도해요.`);
+    if (REASON_ERR && REASON_ERR !== 'no_key') errs.push('AI 요약을 만들지 못해서 숫자 요약으로 보여드려요.');
+    $('errs').replaceChildren(...errs.map((m) => el('div', 'err', m)));
+
+    const hot = items.filter((it) => it.tags.includes('급상승'));
+    const top = items[0];
+    $('k-top').textContent = top ? top.ticker : '—';
+    $('k-hot').textContent = hot.length;
+    $('k-multi').textContent = items.filter((it) => it.tags.includes('여러 SNS 동시 화제')).length;
+    $('k-watch').textContent = items.filter((it) => WATCH.includes(it.ticker)).length + ' / ' + WATCH.length;
+    ['k-top', 'k-hot', 'k-multi', 'k-watch', 'take'].forEach((id) => $(id).classList.remove('skel'));
+    $('take').textContent = top
+      ? `지금 SNS에서 가장 뜨거운 종목은 ${top.ticker}(${top.name})예요. ` + (hot.length ? `레딧 언급이 하루 새 3배 이상 뛴 종목은 ${hot.slice(0, 3).map((h) => h.ticker).join(', ')}${hot.length > 3 ? ' 등 ' + hot.length + '개' : ''}예요.` : '하루 새 언급이 3배 이상 뛴 종목은 없어요.')
+      : '지금은 보여드릴 데이터가 없어요.';
+
+    const list = pick();
+    $('hot').replaceChildren(...list.slice(0, 6).map((it) => {
+      const c = el('article', 'hc');
+      const head = el('div', 't'); const left = el('span'); left.append(el('span', 'tk', it.ticker), mk(it));
+      head.append(left, el('span', 'sc', '점수 ' + it.score));
+      c.append(head, el('div', 'nm', it.name || ''), tagEls(tagsOf(it)), why(it));
+      const st = [];
+      if (it.mentions != null) st.push(`레딧 언급 ${it.mentions}회`);
+      if (it.st_rank) st.push(`StockTwits ${it.st_rank}위`);
+      if (it.cg_rank) st.push(`CoinGecko ${it.cg_rank}위`);
+      if (st.length) { const s = el('div', 'stats', st.join(' · ')); if (it.mentions != null) { s.append(' · 전일 대비 ', chg(it)); } c.append(s); }
+      return c;
+    }));
+    if (!list.length) $('hot').replaceChildren(el('p', 'note', '해당하는 종목이 없어요.'));
+
+    const rows = [];
+    list.slice(0, LIMIT).forEach((it, i) => {
+      const tr = el('tr', 'row'); tr.dataset.key = it.key; tr.tabIndex = 0;
+      const nm = el('td'); nm.append(el('b', null, it.ticker), mk(it), el('div', 'sub', it.name || ''));
+      const c = el('td', 'n'); c.append(chg(it));
+      const r = el('td', 'reason'); r.append(why(it));
+      const tg = el('td'); tg.append(tagEls(tagsOf(it)));
+      tr.append(el('td', 'n', String(i + 1)), nm, el('td', 'n', String(it.score)), el('td', 'n', it.mentions == null ? '–' : String(it.mentions)), c, r, tg);
+      rows.push(tr);
+      if (open.has(it.key)) {
+        const d = el('tr', 'det'); const td = el('td'); td.colSpan = 7;
+        const bits = [];
+        if (it.reddit_rank) bits.push(`레딧 순위 ${it.reddit_rank}위 (하루 전 ${it.rank_24h_ago || '–'}위), 하루 전 언급 ${it.mentions_24h_ago ?? 0}회`);
+        if (it.st_rank) bits.push(`StockTwits 트렌딩 ${it.st_rank}위`);
+        if (it.cg_rank) bits.push(`CoinGecko 검색 급상승 ${it.cg_rank}위` + (it.price_change_24h != null ? ` (24시간 ${it.price_change_24h.toFixed(1)}%)` : ''));
+        bits.push('출처: ' + it.sources.join(', '));
+        td.append(el('div', null, bits.join(' · ')));
+        if (it.st_summary) td.append(el('div', null, 'StockTwits 원문: ' + it.st_summary));
+        d.append(td); rows.push(d);
+      }
+    });
+    if (!rows.length) { const tr = el('tr'); const td = el('td', 'sub', '해당하는 종목이 없어요.'); td.colSpan = 7; tr.append(td); rows.push(tr); }
+    $('tbody').replaceChildren(...rows);
+    $('more').hidden = list.length <= LIMIT;
+    $('more').textContent = `더 보기 (${list.length - LIMIT}개 더)`;
+  }
+
+  const toggle = (e) => {
+    const tr = e.target.closest('tr.row'); if (!tr) return;
+    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.type === 'keydown') e.preventDefault();
+    open.has(tr.dataset.key) ? open.delete(tr.dataset.key) : open.add(tr.dataset.key);
+    render();
+  };
+  $('tbody').addEventListener('click', toggle);
+  $('tbody').addEventListener('keydown', toggle);
+  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+    TAB = b.dataset.tab;
+    document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  }));
+  $('q').addEventListener('input', render);
+  $('more').addEventListener('click', () => { LIMIT += 30; render(); });
+
+  async function load() {
+    try {
+      const r = await fetch('/api/buzz');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      DATA = await r.json();
+      render();
+    } catch (e) {
+      $('meta').textContent = '데이터를 불러오지 못했어요. 잠시 후 새로고침해 주세요.';
+    }
+    try {
+      const r = await fetch('/api/reasons');
+      const j = await r.json();
+      REASONS = j.reasons || {}; REASON_ERR = j.error || null;
+      render();
+    } catch (e) { REASON_ERR = 'fetch'; }
+  }
+  $('reload').addEventListener('click', load);
+  load();
+  setInterval(load, 2 * 60 * 1000);
+  setInterval(render, 60 * 1000);
+})();
+</script>
+</body>
+</html>
