@@ -72,7 +72,7 @@
     if (document.body.dataset.view === 'news') { const m = $('meta'); if (m) m.textContent = $('n-meta').textContent; }
 
     const names = { trends: '구글 트렌드', news: '구글 뉴스', wiki: '위키백과', reddit: '레딧' };
-    const failed = Object.entries(d.status || {}).filter(([, s]) => !s.ok).map(([k]) => names[k] || k);
+    const failed = Object.entries(d.status || {}).filter(([k, s]) => !s.ok && k !== 'reddit').map(([k]) => names[k] || k);
     const alerts = [];
     if (failed.length) alerts.push(`지금 ${failed.join(', ')} 데이터를 가져오지 못했어요. 나머지 출처로 보여드리고 10분 뒤 다시 시도해요.`);
     if (c.meta && c.meta.error && c.meta.error !== 'no_key') alerts.push('AI 요약을 잠시 만들지 못해 관련 기사 제목으로 보여드려요.');
@@ -108,7 +108,7 @@
     list('n-news', (d.news || []).slice(0, 12), (n) => { const b = el('span'); b.append(link(n.url, n.title), el('span', 'sub', n.source || '')); return [b, el('span', 'r', ago(n.published))]; });
     $('n-wiki-sub').textContent = d.wiki && d.wiki.date ? `${d.wiki.date} 하루 조회수 기준` : '하루 조회수 기준';
     list('n-wiki', d.wiki ? d.wiki.list.slice(0, 12) : [], (w) => [link(w.url, w.title), el('span', 'r', fmt(w.views) + '회')]);
-    $('n-reddit-box').hidden = REGION !== 'global';
+    $('n-reddit-box').hidden = REGION !== 'global' || !(d.reddit || []).length;
     if (REGION === 'global') list('n-reddit', (d.reddit || []).slice(0, 12), (p) => { const b = el('span'); b.append(link(p.url, p.title), el('span', 'sub', 'r/' + p.subreddit)); return [b, el('span', 'r', '▲' + fmt(p.ups))]; });
   }
 
